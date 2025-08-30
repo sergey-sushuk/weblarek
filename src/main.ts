@@ -7,32 +7,27 @@ import { apiProducts } from './utils/data';
 import { IBuyer } from './types';
 import { API_URL } from './utils/constants';
 import { Api } from './components/base/Api';
-import { ApiComposition } from './components/api/Api';
+import { ApiComposition } from './components/api/ApiComposition';
 
 
 async function loadCatalog() {
-    try {
-        const api = new Api(`${API_URL}`);
-        const apiComposition = new ApiComposition(api);
-        
-        const getApiProducts = await apiComposition.get<{ items: any[] }>('/product/');
-        const targetArray = getApiProducts.items;
-        console.log('Каталог товаров:', targetArray);
-        
-        const productsApi = new ProductCatalog(targetArray);
-  
-        console.log('Массив товаров из каталога:', productsApi.getArrayProducts());
-        
-        return productsApi;
-    } catch (error) {
-        console.error('Ошибка:', error);
-    }
+  const api = new Api(API_URL, { headers: { 'Content-Type': 'application/json' } });
+
+const service = new ApiComposition(api);
+
+
+const items = await service.getProducts();
+console.log('Каталог товаров с сервера:', items);
+
+const products = new ProductCatalog();
+products.setArrayProducts(items);
+console.log('Массив товаров из модели:', products.getArrayProducts());
 }
 loadCatalog();
 
 // тест работы ProductCatalog 
 
-const catalog = new ProductCatalog(apiProducts.items);
+const catalog = new ProductCatalog();
 catalog.setArrayProducts(apiProducts.items);
 console.log('Массив товаров из каталога: ', catalog.getArrayProducts());
 const product = catalog.getProduct('854cef69-976d-4c2a-a18c-2aa45046c390');
@@ -47,7 +42,7 @@ const user: IBuyer = {
     "phone": "+7777777777",
     "address": "Сочи"
 }
-const buyer = new Buyer(user);
+const buyer = new Buyer();
 buyer.saveOrderData(user);
 console.log('данные покупателя: ', buyer.getBuyerData());
 console.log('проверка данных покупателя ', buyer.validationData());
@@ -63,7 +58,9 @@ console.log('Вы добавили товар в корзину: ', basket.addPr
 console.log('проверить еслить ли этот товар в корзине: ', basket.hasProduct('854cef69-976d-4c2a-a18c-2aa45046c390'));
 console.log('количество товаров: ', basket.getItemsCount());
 console.log('Стоимость всех товаров ворзине: ', basket.getTotalPrice());
-console.log('удалили этот товар : ', basket.delProduct('854cef69-976d-4c2a-a18c-2aa45046c390'));
+basket.delProduct('854cef69-976d-4c2a-a18c-2aa45046c390');
+console.log('удалили этот товар :854cef69-976d-4c2a-a18c-2aa45046c390');
+console.log('проверить еслить ли этот товар в корзине: ', basket.hasProduct('854cef69-976d-4c2a-a18c-2aa45046c390'));
 basket.clearBasket();
 console.log('Удалили все товары с корзины');
 console.log('Текущая корзина:', basket.getArrayBasket());

@@ -2,25 +2,24 @@ import { IProduct } from '../../types/index.ts'
 
 export class Basket {
 
-  arrayProducts: IProduct[];
+  arrayProducts: IProduct[] = [];
 
-  constructor(selectedProducts: IProduct[] = []) {
-    this.arrayProducts = selectedProducts;
-  }
+
 
   getArrayBasket(): IProduct[] {
     return [...this.arrayProducts];
   }
 
 // Добавляет товар в корзину
-  addProduct(product: IProduct): IProduct[] {
-    return this.arrayProducts.concat(product);
+ addProduct(product: IProduct): IProduct[] {
+  this.arrayProducts.push(product);
+  return this.arrayProducts;
   }
 
 // Удаляет товар из корзины по его id
-  delProduct(id: string): IProduct[] {
+  delProduct(id: string): void {
     this.arrayProducts = this.arrayProducts.filter(item => item.id !== id);
-    return this.arrayProducts;
+
   }
   
 // Вычисляет общую стоимость товаров в корзине

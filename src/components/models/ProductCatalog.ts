@@ -2,13 +2,9 @@ import { IProduct } from '../../types/index.ts'
 
 // Класс, представляющий каталог товаров
 export class ProductCatalog {
-  arrayProducts: IProduct[];
+ private arrayProducts: IProduct[] = [];
   cardProduct!: IProduct;
 
-  
-  constructor(initialProducts: IProduct[]) {
-    this.arrayProducts = initialProducts;
-  }
 
   setArrayProducts(arrayProducts: IProduct[]): void {
     this.arrayProducts = [...arrayProducts];
@@ -27,14 +23,7 @@ export class ProductCatalog {
       throw new Error(`Товар с ID ${id} не найден`);
     }
 
-    return {
-      id: product.id,
-      description: product.description,
-      image: product.image,
-      title: product.title,
-      category: product.category,
-      price: product.price
-    };
+    return product;
   }
 
   // Создает копию переданного товара для отображения
