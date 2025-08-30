@@ -216,3 +216,5 @@ validationData(): boolean - валидация введенных данных.
 
 post<T extends object>(uri: string, data: object, method?: ApiPostMethods): Promise<T> - метод класса Api,  принимает и отправляет на сервер объект с данными о пользователе, товаров которые он выбрал .
 ```
+
+

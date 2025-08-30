@@ -5,9 +5,30 @@ import { Basket } from './components/models/Basket';
 import { Buyer } from './components/models/Buyer ';
 import { apiProducts } from './utils/data';
 import { IBuyer } from './types';
+import { API_URL } from './utils/constants';
+import { Api } from './components/base/Api';
+import { ApiComposition } from './components/api/Api';
 
 
-
+async function loadCatalog() {
+    try {
+        const api = new Api(`${API_URL}`);
+        const apiComposition = new ApiComposition(api);
+        
+        const getApiProducts = await apiComposition.get<{ items: any[] }>('/product/');
+        const targetArray = getApiProducts.items;
+        console.log('Каталог товаров:', targetArray);
+        
+        const productsApi = new ProductCatalog(targetArray);
+  
+        console.log('Массив товаров из каталога:', productsApi.getArrayProducts());
+        
+        return productsApi;
+    } catch (error) {
+        console.error('Ошибка:', error);
+    }
+}
+loadCatalog();
 
 // тест работы ProductCatalog 
 
