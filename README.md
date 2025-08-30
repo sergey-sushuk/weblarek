@@ -97,4 +97,122 @@ Presenter - презентер содержит основную логику п
 `on<T extends object>(event: EventName, callback: (data: T) => void): void` - подписка на событие, принимает название события и функцию обработчик.  
 `emit<T extends object>(event: string, data?: T): void` - инициализация события. При вызове события в метод передается название события и объект с данными, который будет использован как аргумент для вызова обработчика.  
 `trigger<T extends object>(event: string, context?: Partial<T>): (data: T) => void` - возвращает функцию, при вызове которой инициализируется требуемое в параметрах событие с передачей в него данных из второго параметра.
+##### Архитектура
+```
+Применяемый паттерн проектирования — MVP
+``` 
+#### Используемые данные и тыпы данных
+ 
+##### Продукт 
+```
+ id: string 
+ description: string
+ image: string
+ title: string 
+ category: string 
+ price: number | null 
+```
 
+##### Пользователь 
+```
+ payment: 'Card'|'Cash'|'' 
+ email: string 
+ phone: string
+ address: string
+```
+
+#### Интерфейсы
+используются 2 интерфейса IProduct и IBuyer
+
+```
+IProduct
+ 
+ id: интедификатор товара 
+ description: описание товара
+ image: изображение товара
+ title: название товара 
+ category: категория товара  
+ price: number | null цена товара ( если она есть)
+```
+IBuyer
+```
+payment: спопоб оплаты 
+ email: почта 
+ phone: телефон
+ address: адрес
+```
+
+##### Данные
+
+Для учёта данных  классы разделяются по смыслу и зонам ответственности: ProductCatalog, Basket, Buyer
+
+Класс ProductCatalog
+```
+Хранение товаров, которые можно купить.
+
+Конструктор класса: constructor(initialProducts: IProduct[]) - в конструктор передается массив товаров, доступных в приложении, и объект отдельного товара.
+
+Поля класса: arrayProducts: IProduct[] - хранит массив всех товаров. 
+cardProduct: IProduct - хранит выбранный товар.
+
+Методы класса: setArrayProducts(arrayProducts: IProduct[]): 
+void - товар почученный в методе. 
+
+getArrayProducts(): IProduct[] - массив товаров из модели.
+
+getProduct(id: string): IProduct - получение товара по id.
+
+setProductForDisplay(cardProduct: IProduct): void - сохранение товара для подробного отображения.
+
+getProductForDisplay(id: string): IProduct - получение товара для подробного отображения.
+```
+
+Класс Basket
+
+```
+товары добавленные в корзину.
+
+Конструктор класса: constructor(selectedProducts: IProduct[] = []) - передает массив выбранных товаров.
+
+Поля класса: arrayProducts: IProduct[] - хранит массив товаров в корзине для  покупки.
+
+Методы класса: getArrayBasket(): IProduct[] - получение массива товаров из корзины.
+
+addProduct(product: IProduct): IProduct[] - добавление товара в корзину.
+ 
+delProduct(id: string): IProduct[] - удаление товара из корзины.
+  
+clearBasket(): void - очистка корзины. 
+
+getTotalPrice(): number | null - получить стоимость всех выбранных товаров.
+   
+getItemsCount(): number - получить количество товаров в корзине.
+    
+ hasProduct(id: string): boolean - проверяет добавлен ли товар в корзину.
+```
+
+Класс Buyer
+```
+Методы класса: saveOrderData(buyerData: IBuyer ): void - сохранение данных покупателя в модели.
+
+getBuyerData(): IBuyer  - получить данные пользователя. 
+
+clearBuyerData(): void - очистить данные пользователя.
+
+validationData(): boolean - валидация введенных данных.
+```
+
+### Слой коммуникации
+Класс ApiComposition
+
+```
+получение данных с сервера и отправку данных на сервер c помощью Api.
+
+Конструктор класса: constructor(instanceApi: IApi) - передает экземляр клазза который соответствует интерфейсу IApi.
+
+Поля класса: instanceApi: IApi - экземпляр класса который соответствует интерфейсу IApi.
+
+Методы класса: get<T extends object>(uri: string): Promise<T> - метод класса Api,  выполняет GET запрос на сервер и получает объект с массивом товаров.
+
+post<T extends object>(uri: string, data: object, method?: ApiPostMethods): Promise<T> - метод класса Api,  принимает и отправляет на сервер объект с данными о пользователе, товаров которые он выбрал .
+```
