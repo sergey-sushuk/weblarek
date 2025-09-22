@@ -21,12 +21,12 @@ export interface IOrderRequest {
 
 // интерфейс каталога товаров 
 export interface IProduct {
-    id: string;
-    description: string;
-    image: string;
-    title: string;
-    category: string;
-    price: number | null;
+  id: ProductId;
+  description: string;
+  image: string;
+  title: string;
+  category: string;
+  price: Price;
 }
 // интерфейс покупателя
 export interface IBuyer  {
@@ -39,3 +39,8 @@ export interface IBuyer  {
 // тип метода оплаты
 export type TPayment = 'card' | 'cash' | ''; 
 
+//ID Продукта
+export type ProductId = string;
+
+// Цена как тип
+export type Price = number | null;

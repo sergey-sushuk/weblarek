@@ -10,3 +10,14 @@ export const settings = {
 
 };
 
+
+
+export const uiConfig = { labels: { currency: 'синапсов', free: 'Бесценно' } };
+
+export const categoryLut = {
+  'софт-скил': 'soft',
+  'хард-скил': 'hard',
+  'кнопка': 'button',
+  'дополнительное': 'additional',
+  'другое': 'other',
+} as const;
