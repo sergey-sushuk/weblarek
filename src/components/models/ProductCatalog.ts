@@ -1,38 +1,32 @@
-import { IProduct } from '../../types/index.ts'
+import { Events } from '../base/Events';
+import type { IProduct } from '../../types';
 
-// Класс, представляющий каталог товаров
-export class ProductCatalog {
- private arrayProducts: IProduct[] = [];
-  cardProduct!: IProduct;
+export class ProductCatalog extends Events {
+  protected arrayProducts: IProduct[] = [];
+  protected cardProduct?: IProduct;
 
-
-  setArrayProducts(arrayProducts: IProduct[]): void {
-    this.arrayProducts = [...arrayProducts];
+  setArrayProducts(items: IProduct[]): void {
+    this.arrayProducts = [...items];
+    this.emit('catalog:changed', this.getArrayProducts());
   }
-
 
   getArrayProducts(): IProduct[] {
     return [...this.arrayProducts];
   }
 
- // Поиск товара по ID в массиве
   getProduct(id: string): IProduct {
-    const product = this.arrayProducts.find(item => item.id === id);
-    
-    if (!product) {
-      throw new Error(`Товар с ID ${id} не найден`);
-    }
-
+    const product = this.arrayProducts.find((i) => i.id === id);
+    if (!product) throw new Error(`Товар с ID ${id} не найден`);
     return product;
   }
 
-  // Создает копию переданного товара для отображения
-  setProductForDisplay(cardProduct: IProduct): void {
-    this.cardProduct = { ...cardProduct };
+  setProductForDisplay(product: IProduct): void {
+    this.cardProduct = product;
+    this.emit('product:selected', product.id);
   }
 
- // Возвращает текущий товар для отображения
-  getProductForDisplay(): IProduct { 
-    return this.cardProduct; 
+  getProductForDisplay(): IProduct {
+    if (!this.cardProduct) throw new Error('Не выбран товар для отображения');
+    return this.cardProduct;
   }
 }

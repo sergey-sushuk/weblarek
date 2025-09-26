@@ -1,38 +1,50 @@
 import { CardView } from './CardView';
 import type { Price } from '../../types';
-import { cloneTpl } from './dom';
+import { cloneTemplate, ensureElement } from '../../utils/utils';
 
 export type TileProps = {
   id: string;
   title: string;
   image?: string;
   price: Price;
-  inBasket: boolean;
   category?: string;
+  inBasket: boolean;
+};
+
+export type TileOpts = {
+  onOpen: (id: string) => void;
 };
 
 export class ProductTileWidget extends CardView<TileProps> {
-  constructor(private props: TileProps, private onOpen: (id: string) => void) {
-    const root = cloneTpl<HTMLElement>('card-catalog');
+  private id!: string;
+
+  constructor(props: TileProps, opts: TileOpts) {
+    // В шаблонах стартера id именно '#card-catalog'
+    const root = cloneTemplate<HTMLElement>('#card-catalog');
     super(root);
 
-    this.titleEl = root.querySelector('.card__title') as HTMLElement;
-    const imgNode = root.querySelector('.card__image') as HTMLElement | null;
-    if (imgNode instanceof HTMLImageElement) this.imgEl = imgNode;
-    else this.imgBoxEl = imgNode || undefined;
-    this.priceEl = root.querySelector('.card__price') as HTMLElement;
-    this.categoryEl = root.querySelector('.card__category') as HTMLElement;
+    this.titleEl = ensureElement('.card__title', root);
+    this.priceEl = ensureElement('.card__price', root);
+    this.categoryEl = ensureElement('.card__category', root);
 
-    root.addEventListener('click', () => this.onOpen(this.props.id));
+    const img = root.querySelector('.card__image');
+    if (img instanceof HTMLImageElement) this.imgEl = img;
+    else this.imgBoxEl = img as HTMLElement | undefined;
 
-    this.apply();
+    root.addEventListener('click', (e) => {
+      e.preventDefault();
+      opts.onOpen(this.id);
+    });
+
+    this.setState(props);
   }
 
-  private apply() {
-    this.setTitle(this.props.title);
-    this.applyImage(this.props.image, this.props.title);
-    this.setPrice(this.props.price);
-    this.setCategory(this.props.category);
+  setState(p: TileProps) {
+    this.id = p.id;
+    this.setTitle(p.title);
+    this.applyImage(p.image, p.title);
+    this.setPrice(p.price);
+    this.setCategory(p.category);
   }
 
   render(): HTMLElement {

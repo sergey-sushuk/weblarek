@@ -1,65 +1,50 @@
 import { FormViewBase } from './FormViewBase';
-import { cloneTpl } from './dom';
+import { cloneTemplate, ensureElement } from '../../utils/utils';
 
-type State = { email: string; phone: string; errors?: Record<string,string> };
+type Step2State = {
+  email: string;
+  phone: string;
+  error?: string;
+  disablePay?: boolean;
+};
 
-export class CheckoutStageTwo extends FormViewBase<State> {
+type Step2Handlers = {
+  onInput: (field: 'email' | 'phone', value: string) => void;
+  onSubmit: () => void;
+};
+
+export class CheckoutStageTwo extends FormViewBase<Step2State> {
   private emailInput: HTMLInputElement;
   private phoneInput: HTMLInputElement;
-  private state: State = { email: '', phone: '', errors: {} };
 
-  constructor(private onPay: (data: { email: string; phone: string }) => void) {
-    const form = cloneTpl<HTMLFormElement>('contacts');
+  constructor(private handlers: Step2Handlers) {
+    const form = cloneTemplate<HTMLFormElement>('#contacts');
     super(form);
 
-    this.submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null || undefined;
-    this.errorsEl  = form.querySelector('.form__errors') as HTMLElement | null || undefined;
+    this.emailInput = ensureElement<HTMLInputElement>('input[name="email"]', form);
+    this.phoneInput = ensureElement<HTMLInputElement>('input[name="phone"]', form);
 
-    this.emailInput = form.querySelector('input[name="email"]') as HTMLInputElement;
-    this.phoneInput = form.querySelector('input[name="phone"]') as HTMLInputElement;
+    this.emailInput.addEventListener('input', (e) =>
+      this.handlers.onInput('email', (e.target as HTMLInputElement).value)
+    );
+    this.phoneInput.addEventListener('input', (e) =>
+      this.handlers.onInput('phone', (e.target as HTMLInputElement).value)
+    );
 
-    this.emailInput.addEventListener('input', (e: Event) => {
-      this.state.email = (e.target as HTMLInputElement).value;
-      this.validate();
-    });
-    this.phoneInput.addEventListener('input', (e: Event) => {
-      this.state.phone = (e.target as HTMLInputElement).value;
-      this.validate();
-    });
-
-    form.addEventListener('submit', (e: SubmitEvent) => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
-      this.validate();
-      if (!this.hasErrors()) {
-        this.onPay({ email: this.state.email, phone: this.state.phone });
-      }
+      this.handlers.onSubmit();
     });
-
-    // первичная валидация
-    this.validate();
   }
 
-  private hasErrors(): boolean {
-    return Boolean(this.state.errors && (this.state.errors.email || this.state.errors.phone));
+  setState(state: Step2State) {
+    this.emailInput.value = state.email ?? '';
+    this.phoneInput.value = state.phone ?? '';
+    this.setError(state.error ?? '');
+    this.setSubmitDisabled(Boolean(state.disablePay));
   }
 
-  private validate() {
-    const errors: State['errors'] = {};
-
-    if (!this.state.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.state.email)) {
-      errors!.email = 'Введите корректный e-mail';
-    }
-    if (!this.state.phone || this.state.phone.replace(/\D/g, '').length < 10) {
-      errors!.phone = 'Введите телефон (не менее 10 цифр)';
-    }
-    this.state.errors = errors;
-    const msg = errors?.email || errors?.phone || '';
-    this.setError(msg);
-    this.setSubmitDisabled(Boolean(msg));
-  }
-
-  override render(): HTMLElement {
- 
-    return this.form;
+  reset() {
+    this.setState({ email: '', phone: '', error: '', disablePay: true });
   }
 }

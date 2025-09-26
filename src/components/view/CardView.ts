@@ -7,46 +7,53 @@ export abstract class CardView<T> extends Component<T> {
   protected priceEl?: HTMLElement;
   protected categoryEl?: HTMLElement;
   protected imgEl?: HTMLImageElement;
-  protected imgBoxEl?: HTMLElement; 
+  protected imgBoxEl?: HTMLElement;
 
   protected setTitle(text?: string) {
     if (this.titleEl) this.titleEl.textContent = text ?? '';
   }
 
+ 
   protected applyImage(src?: string, alt?: string) {
-    const isBad = !src || /<%=?\s*require/.test(src);
     if (this.imgEl) {
-      this.imgEl.src = isBad ? '' : src!;
+      this.imgEl.src = src ?? '';
       this.imgEl.alt = alt ?? '';
-      if (!isBad) this.imgEl.removeAttribute('hidden');
-      else this.imgEl.setAttribute('hidden', 'true');
-    } else if (this.imgBoxEl) {
-      if (isBad) {
-        this.imgBoxEl.innerHTML = '<div class="card__image-placeholder"></div>';
-      } else {
-        this.imgBoxEl.innerHTML = `<img class="card__image" src="${src}" alt="${alt ?? ''}">`;
+      return;
+    }
+    if (this.imgBoxEl) {
+      const img = this.imgBoxEl.querySelector('img') as HTMLImageElement | null;
+      if (img) {
+        img.src = src ?? '';
+        img.alt = alt ?? '';
       }
     }
   }
 
-  protected setCategory(c?: string) {
+  protected setCategory(category?: string) {
     if (!this.categoryEl) return;
 
-    const text = c ?? '';
-    const slug = c ? (categoryLut as any)[c] ?? 'other' : 'other';
-    this.categoryEl.textContent = text;
-    for (const cls of Array.from(this.categoryEl.classList)) {
-      if (cls.startsWith('card__category_')) this.categoryEl.classList.remove(cls);
-    }
+    this.categoryEl.textContent = category ?? '';
+
+    // очищаем предыдущие модификаторы
+    Array.from(this.categoryEl.classList)
+      .filter((c) => c.startsWith('card__category_'))
+      .forEach((c) => this.categoryEl!.classList.remove(c));
+
+    
+    const slug = category ? (categoryLut as Record<string, string>)[category] ?? 'other' : 'other';
     this.categoryEl.classList.add(`card__category_${slug}`);
-   
-    const mod = c ? `card__category_${c.replace(/\s+/g, '-').toLowerCase()}` : 'card__category_other';
-    this.categoryEl.classList.add(mod);
   }
 
+  
   protected setPrice(price: Price | IProduct) {
     if (!this.priceEl) return;
-    const v: Price = (price && typeof price === 'object') ? (price as IProduct).price : (price as Price);
-    this.priceEl.textContent = v === null ? uiConfig.labels.free : `${v} ${uiConfig.labels.currency}`;
+
+    const v: Price =
+      price && typeof (price as any) === 'object' && 'price' in (price as any)
+        ? ((price as any).price as Price)
+        : (price as Price);
+
+    this.priceEl.textContent =
+      v === null ? uiConfig.labels.free : `${v} ${uiConfig.labels.currency}`;
   }
 }
