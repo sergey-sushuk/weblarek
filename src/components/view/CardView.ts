@@ -13,7 +13,6 @@ export abstract class CardView<T> extends Component<T> {
     if (this.titleEl) this.titleEl.textContent = text ?? '';
   }
 
- 
   protected applyImage(src?: string, alt?: string) {
     if (this.imgEl) {
       this.imgEl.src = src ?? '';
@@ -31,29 +30,21 @@ export abstract class CardView<T> extends Component<T> {
 
   protected setCategory(category?: string) {
     if (!this.categoryEl) return;
-
     this.categoryEl.textContent = category ?? '';
-
-    // очищаем предыдущие модификаторы
     Array.from(this.categoryEl.classList)
-      .filter((c) => c.startsWith('card__category_'))
-      .forEach((c) => this.categoryEl!.classList.remove(c));
-
-    
+      .filter((cls) => cls.startsWith('card__category_'))
+      .forEach((cls) => this.categoryEl!.classList.remove(cls));
     const slug = category ? (categoryLut as Record<string, string>)[category] ?? 'other' : 'other';
     this.categoryEl.classList.add(`card__category_${slug}`);
   }
 
-  
   protected setPrice(price: Price | IProduct) {
     if (!this.priceEl) return;
-
-    const v: Price =
-      price && typeof (price as any) === 'object' && 'price' in (price as any)
-        ? ((price as any).price as Price)
+    const priceValue: Price =
+      typeof price === 'object' && price !== null && 'price' in price
+        ? (price as IProduct).price
         : (price as Price);
-
     this.priceEl.textContent =
-      v === null ? uiConfig.labels.free : `${v} ${uiConfig.labels.currency}`;
+      priceValue === null ? uiConfig.labels.free : `${priceValue} ${uiConfig.labels.currency}`;
   }
 }

@@ -1,4 +1,5 @@
 import { Component } from '../base/Component';
+import type { IEvents } from '../base/Events';
 import { ensureElement } from '../../utils/utils';
 
 type HeaderState = { counter: number };
@@ -6,15 +7,14 @@ type HeaderState = { counter: number };
 export class HeaderBasketButton extends Component<HeaderState> {
   private counterEl: HTMLElement;
 
-  constructor(onOpen: () => void) {
-    const root = ensureElement<HTMLButtonElement>('.header__basket');
+  constructor(private readonly events: IEvents, root: HTMLButtonElement) {
     super(root);
     this.counterEl = ensureElement('.header__basket-counter', root);
 
     root.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      onOpen();
+      this.events.emit('basket/open');
     });
   }
 

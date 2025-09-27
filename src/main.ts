@@ -7,9 +7,8 @@ import { API_URL, CDN_URL } from './utils/constants';
 import { ProductCatalog } from './components/models/ProductCatalog';
 import { Basket } from './components/models/Basket';
 import { Buyer } from './components/models/Buyer';
-import type { IProduct,  TPayment } from './types';
+import type { IBuyer, IProduct, TPayment } from './types';
 
-import { Events } from './components/base/Events';           
 import { OverlayModal } from './components/view/OverlayModal';
 import { HeaderBasketButton } from './components/view/HeaderBasketButton';
 import { CatalogGrid } from './components/view/CatalogGrid';
@@ -18,21 +17,19 @@ import { ProductModalWidget } from './components/view/ProductModalWidget';
 import { CartPanelWidget } from './components/view/CartPanelWidget';
 import { CheckoutStageOne } from './components/view/CheckoutStageOne';
 import { CheckoutStageTwo } from './components/view/CheckoutStageTwo';
+import { SuccessOrderWidget } from './components/view/SuccessOrderWidget';
 import { ensureElement } from './utils/utils';
+import { Events } from './components/base/Events';
 
-// ---- сервисы
 const api = new Api(API_URL, { headers: { 'Content-Type': 'application/json' } });
 const service = new ApiComposition(api);
 
-// ---- модели
 const productsModel = new ProductCatalog();
 const cartModel = new Basket();
 const buyerModel = new Buyer();
 
-// ---- события
 const bus = new Events();
 
-// ---- представления (инициализируются в bootstrap)
 let modal: OverlayModal;
 let headerCart: HeaderBasketButton;
 let catalog: CatalogGrid;
@@ -40,118 +37,79 @@ let cartPanel: CartPanelWidget;
 let orderStep1: CheckoutStageOne;
 let orderStep2: CheckoutStageTwo;
 
-function makeImg(src?: string) {
+function resolveCdnImage(src?: string) {
   if (!src) return undefined;
   const file = src.replace(/^\/?images\//i, '').replace(/^\//, '');
   return `${CDN_URL}/${file}`;
 }
 
-// рендер каталога по событию модели
 function renderCatalog() {
-  const items = productsModel.getArrayProducts();
-
-  const nodes = items.map((p: IProduct) =>
+  const products = productsModel.getArrayProducts();
+  const tiles = products.map((product: IProduct) =>
     new ProductTileWidget(
       {
-        id: p.id,
-        title: p.title,
-        image: makeImg(p.image),
-        price: p.price,
-        category: p.category,
-        inBasket: cartModel.hasProduct(p.id),
+        id: product.id,
+        title: product.title,
+        image: resolveCdnImage(product.image),
+        price: product.price,
+        category: product.category,
+        inBasket: cartModel.hasProduct(product.id),
       },
-      { onOpen: openPreview }                              // <- передаём объект с onOpen
+      { onOpen: openPreview }
     ).render()
   );
-
-  catalog.setChildren(nodes);
+  catalog.setChildren(tiles);
   headerCart.setState({ counter: cartModel.getItemsCount() });
 }
 
-function openPreview(id: string) {
-  const p = productsModel.getProduct(id);
-
+function openPreview(productId: string) {
+  const product = productsModel.getProduct(productId);
   const preview = new ProductModalWidget(
     {
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      image: makeImg(p.image),
-      price: p.price,
-      inBasket: cartModel.hasProduct(p.id),
-      category: p.category,
+      id: product.id,
+      title: product.title,
+      description: product.description,
+      image: resolveCdnImage(product.image),
+      price: product.price,
+      inBasket: cartModel.hasProduct(product.id),
+      category: product.category,
     },
-    (pid, nextInBasket) => {
-      const prod = productsModel.getProduct(pid);
-      if (nextInBasket) cartModel.addProduct(prod);
-      else cartModel.delProduct(pid);
-
-      // перерисуем каталог и модалку с актуальными данными
-      renderCatalog();
-
-      const upd = new ProductModalWidget(
-        {
-          id: prod.id,
-          title: prod.title,
-          description: prod.description,
-          image: makeImg(prod.image),
-          price: prod.price,
-          inBasket: cartModel.hasProduct(prod.id),
-          category: prod.category,
-        },
-        (pid2, next2) => {
-          const prod2 = productsModel.getProduct(pid2);
-          if (next2) cartModel.addProduct(prod2);
-          else cartModel.delProduct(pid2);
-          renderCatalog();
-          openPreview(pid2);
-        }
-      );
-
-      modal.open(upd.render(), { clone: false });
+    (id: string, nextInBasket: boolean) => {
+      const products = productsModel.getProduct(id);
+      if (nextInBasket) cartModel.addProduct(products);
+      else cartModel.delProduct(id);
+      modal.close(); 
     }
   );
-
-  modal.open(preview.render(), { clone: false });          // <- НЕТ .getElement()
+  modal.open(preview.render());
 }
 
 function openCart() {
   const items = cartModel.getArrayBasket();
-
   cartPanel.setItems(
     items.map((it, i) => ({ id: it.id, title: it.title, price: it.price, index: i + 1 }))
   );
   cartPanel.setTotal(cartModel.getTotalPrice());
-  modal.open(cartPanel.render(), { clone: false });
+  modal.open(cartPanel.render());
 }
 
 async function createOrderAndShowSuccess() {
-  const d = buyerModel.getBuyerData();
+  const buyer = buyerModel.getBuyerData();
   const payload = {
-    payment: d.payment,
-    address: d.address,
-    email: d.email,
-    phone: d.phone,
+    payment: buyer.payment,
+    address: buyer.address,
+    email: buyer.email,
+    phone: buyer.phone,
     items: cartModel.getArrayBasket().map((i) => i.id),
     total: cartModel.getTotalPrice(),
   };
 
   await service.createOrder(payload);
 
-  const tpl = ensureElement<HTMLTemplateElement>('#success');
-  const node = tpl.content.firstElementChild!.cloneNode(true) as HTMLElement;
+  const success = new SuccessOrderWidget(bus, payload.total);
+  modal.open(success.render());
 
-  const totalText =
-    payload.total === null ? 'Списано бесплатно' : `Списано ${payload.total} синапсов`;
-  const amountEl = node.querySelector('.order-success__description') as HTMLElement | null;
-  if (amountEl) amountEl.textContent = totalText;
-
-  const closeBtn = node.querySelector('.order-success__close') as HTMLButtonElement | null;
-  closeBtn?.addEventListener('click', () => modal.close());
-
-  modal.open(node, { clone: false });
-
-  // сброс
+  // очистка состояния после успешной оплаты
   cartModel.clearBasket();
   buyerModel.clearBuyerData();
   headerCart.setState({ counter: 0 });
@@ -161,93 +119,150 @@ function bootstrap() {
   const modalRoot = ensureElement<HTMLElement>('#modal-container');
   modal = new OverlayModal(modalRoot);
 
-  headerCart = new HeaderBasketButton(openCart);          // <- передаём колбэк, не объект
+  const headerRoot = ensureElement<HTMLButtonElement>('.header__basket');
+  headerCart = new HeaderBasketButton(bus, headerRoot);
 
   const gridRoot = ensureElement<HTMLElement>('.gallery');
   catalog = new CatalogGrid(gridRoot);
 
-  cartPanel = new CartPanelWidget(bus, {                  // <- только onCheckout
-    onCheckout: () => modal.open(orderStep1.render(), { clone: false }),
-  });
+  cartPanel = new CartPanelWidget(bus);
+
 
   orderStep1 = new CheckoutStageOne({
-    onPaymentSelect: (m: TPayment) => {
-      buyerModel.saveOrderData({ payment: m });
-      const errs = buyerModel.validationData();
-      const d = buyerModel.getBuyerData();
-      orderStep1.setState({
-        payment: d.payment || null,
-        address: d.address || '',
-        error: errs.payment ?? errs.address,
-        disableNext: Boolean(errs.payment || errs.address),
-      });
-    },
-    onAddressInput: (address: string) => {
-      buyerModel.saveOrderData({ address });
-      const errs = buyerModel.validationData();
-      const d = buyerModel.getBuyerData();
-      orderStep1.setState({
-        payment: d.payment || null,
-        address: d.address || '',
-        error: errs.payment ?? errs.address,
-        disableNext: Boolean(errs.payment || errs.address),
-      });
-    },
-    onSubmit: () => {
-      const errs = buyerModel.validationData();
-      if (errs.payment || errs.address) {
-        const d = buyerModel.getBuyerData();
-        orderStep1.setState({
-          payment: d.payment || null,
-          address: d.address || '',
-          error: errs.payment ?? errs.address,
-          disableNext: true,
-        });
-        return;
-      }
-      modal.open(orderStep2.render(), { clone: false });
-    },
+    onPaymentSelect: (method: TPayment) => bus.emit('checkout:stage1:payment', { method }),
+    onAddressInput: (address: string) => bus.emit('checkout:stage1:address', { address }),
+    onSubmit: () => bus.emit('checkout:stage1:submit'),
   });
 
   orderStep2 = new CheckoutStageTwo({
-    onInput: (field, value) => {
-      buyerModel.saveOrderData({ [field]: value } as any);
-      const errs = buyerModel.validationData();
-      const d = buyerModel.getBuyerData();
-      orderStep2.setState({
-        email: d.email,
-        phone: d.phone,
-        error: errs.email ?? errs.phone,
-        disablePay: Boolean(errs.email || errs.phone),
-      });
-    },
-    onSubmit: async () => {
-      const errs = buyerModel.validationData();
-      if (errs.email || errs.phone) {
-        const d = buyerModel.getBuyerData();
-        orderStep2.setState({
-          email: d.email,
-          phone: d.phone,
-          error: errs.email ?? errs.phone,
-          disablePay: true,
-        });
-        return;
-      }
-      await createOrderAndShowSuccess();
-    },
+    onInput: (field, value) => bus.emit('checkout:stage2:input', { field, value }),
+    onSubmit: () => bus.emit('checkout:stage2:submit'),
   });
 
-  // связи
+
+  bus.on('basket/open', () => openCart());
+  bus.on('basket/checkout', () => {
+  
+    const buyer = buyerModel.getBuyerData();
+    const errors = buyerModel.validationData();
+    orderStep1.setState({
+      payment: (buyer.payment || '') as '' | TPayment,
+      address: buyer.address || '',
+      error: errors.payment ?? errors.address ?? '',
+      disableNext: Boolean(errors.payment || errors.address),
+    });
+    modal.open(orderStep1.render());
+  });
+
+  bus.on('modal/close', () => modal.close());
+
+  bus.on('product:open', (payload?: unknown) => {
+    const { id } = (payload ?? {}) as { id: string };
+    if (id) openPreview(id);
+  });
+
+  
+  bus.on('basket/remove', (payload?: unknown) => {
+    const { id } = (payload ?? {}) as { id: string };
+    if (id) cartModel.delProduct(id);
+  });
+
+
+  bus.on('checkout:stage1:payment', (payload?: unknown) => {
+    const { method } = (payload ?? {}) as { method: TPayment };
+    if (!method) return;
+    buyerModel.saveOrderData({ payment: method });
+    const errors = buyerModel.validationData();
+    const buyer = buyerModel.getBuyerData();
+    orderStep1.setState({
+      payment: (buyer.payment || '') as '' | TPayment,
+      address: buyer.address || '',
+      error: errors.payment ?? errors.address ?? '',
+      disableNext: Boolean(errors.payment || errors.address),
+    });
+  });
+
+ 
+  bus.on('checkout:stage1:address', (payload?: unknown) => {
+    const { address } = (payload ?? {}) as { address: string };
+    buyerModel.saveOrderData({ address });
+    const errors = buyerModel.validationData();
+    const buyer = buyerModel.getBuyerData();
+    orderStep1.setState({
+      payment: (buyer.payment || '') as '' | TPayment,
+      address: buyer.address || '',
+      error: errors.payment ?? errors.address ?? '',
+      disableNext: Boolean(errors.payment || errors.address),
+    });
+  });
+
+
+  bus.on('checkout:stage1:submit', () => {
+    const errors = buyerModel.validationData();
+    if (errors.payment || errors.address) {
+      const buyer = buyerModel.getBuyerData();
+      orderStep1.setState({
+        payment: (buyer.payment || '') as '' | TPayment,
+        address: buyer.address || '',
+        error: errors.payment ?? errors.address ?? '',
+        disableNext: true,
+      });
+      return;
+    }
+    const buyer = buyerModel.getBuyerData();
+    const errs = buyerModel.validationData();
+    orderStep2.setState({
+      email: buyer.email || '',
+      phone: buyer.phone || '',
+      error: errs.email ?? errs.phone ?? '',
+      disablePay: Boolean(errs.email || errs.phone),
+    });
+    modal.open(orderStep2.render());
+  });
+
+ 
+  bus.on('checkout:stage2:input', (payload?: unknown) => {
+    const { field, value } = (payload ?? {}) as { field: 'email' | 'phone'; value: string };
+    if (!field) return;
+    buyerModel.saveOrderData({ [field]: value } as Partial<IBuyer>);
+    const errors = buyerModel.validationData();
+    const buyer = buyerModel.getBuyerData();
+    orderStep2.setState({
+      email: buyer.email,
+      phone: buyer.phone,
+      error: errors.email ?? errors.phone ?? '',
+      disablePay: Boolean(errors.email || errors.phone),
+    });
+  });
+
+ 
+  bus.on('checkout:stage2:submit', async () => {
+    const errors = buyerModel.validationData();
+    if (errors.email || errors.phone) {
+      const buyer = buyerModel.getBuyerData();
+      orderStep2.setState({
+        email: buyer.email,
+        phone: buyer.phone,
+        error: errors.email ?? errors.phone ?? '',
+        disablePay: true,
+      });
+      return;
+    }
+    await createOrderAndShowSuccess();
+  });
+
+
   productsModel.on('catalog:changed', renderCatalog);
 
-  // удаление из корзины через EventBus (кнопка удаления висит в CartPanelWidget)
-  bus.on('basket/remove', ({ id }: { id: string }) => {
-    cartModel.delProduct(id);
-    openCart();
+  cartModel.on('basket:changed', () => {
+    headerCart.setState({ counter: cartModel.getItemsCount() });
+  
+    const isCartOpen = !!document.querySelector('.modal.modal_active .basket');
+    if (isCartOpen) openCart();
+   
     renderCatalog();
   });
 
-  // загрузка каталога
   (async () => {
     try {
       const items = await service.getProducts();

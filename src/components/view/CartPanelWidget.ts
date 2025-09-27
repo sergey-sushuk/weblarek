@@ -1,50 +1,38 @@
 import { Component } from '../base/Component';
 import type { IEvents } from '../base/Events';
+import { cloneTemplate, ensureElement } from '../../utils/utils';
 import { uiConfig } from '../../utils/constants';
-import { ensureElement, cloneTemplate } from '../../utils/utils';
-
-export type CartRow = { id: string; title: string; price: number | null; index?: number };
+import { CartItemRow, type CartItemProps } from './CartItemRow';
 
 export class CartPanelWidget extends Component<unknown> {
   private listEl: HTMLElement;
   private totalEl: HTMLElement;
-  private checkoutBtn: HTMLButtonElement;
+  private checkoutButton: HTMLButtonElement;
+  private emptyEl?: HTMLElement;
 
-  constructor(private readonly events: IEvents, opts?: { onCheckout?: () => void }) {
+  constructor(private readonly events: IEvents) {
     const root = cloneTemplate<HTMLElement>('#basket');
     super(root);
 
     this.listEl = ensureElement('.basket__list', root);
     this.totalEl = ensureElement('.basket__price', root);
-    this.checkoutBtn = ensureElement<HTMLButtonElement>('.basket__button', root);
+    this.checkoutButton = ensureElement<HTMLButtonElement>('.basket__button', root);
+    this.emptyEl = (root.querySelector('.basket__empty') as HTMLElement) || undefined;
 
-   
-    this.listEl.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.basket__item-delete');
-      if (!btn || !this.listEl.contains(btn)) return;
-      const id = btn.dataset.id;
-      if (id) this.events.emit('basket/remove', { id });
-    });
-
-    this.checkoutBtn.addEventListener('click', (e) => {
+    this.checkoutButton.addEventListener('click', (e) => {
       e.preventDefault();
-      opts?.onCheckout ? opts.onCheckout() : this.events.emit('basket/checkout');
+      this.events.emit('basket/checkout');
     });
   }
 
-  setItems(items: CartRow[]) {
-    const nodes = items.map((it, i) => {
-      const node = cloneTemplate<HTMLElement>('#card-basket');
-      ensureElement('.basket__item-index', node).textContent = String(it.index ?? i + 1);
-      ensureElement('.card__title', node).textContent = it.title;
-      ensureElement('.card__price', node).textContent =
-        it.price === null ? uiConfig.labels.free : `${it.price} ${uiConfig.labels.currency}`;
-      ensureElement<HTMLButtonElement>('.basket__item-delete', node).dataset.id = it.id;
-      return node;
-    });
-
+  setItems(items: CartItemProps[]) {
+    const nodes = items.map((props) => new CartItemRow(this.events, props).render());
     this.listEl.replaceChildren(...nodes);
-    this.checkoutBtn.disabled = items.length === 0;
+
+    const isEmpty = items.length === 0;
+    this.checkoutButton.disabled = isEmpty;
+    if (this.emptyEl) this.emptyEl.toggleAttribute('hidden', !isEmpty);
+    this.listEl.toggleAttribute('hidden', isEmpty);
   }
 
   setTotal(total: number | null) {
